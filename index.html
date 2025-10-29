@@ -1,0 +1,564 @@
+import React, { useState, useEffect } from 'react';
+import { Mail, Package, RefreshCw, AlertCircle, CheckCircle, MessageSquare, Database, Zap, Send, PlayCircle, Pause, RotateCcw, Calculator, FileText, ChevronRight, Sparkles } from 'lucide-react';
+
+const WorkflowDemo = () => {
+  const [activeStep, setActiveStep] = useState(null);
+  const [presentationMode, setPresentationMode] = useState(false);
+  const [currentPresentationStep, setCurrentPresentationStep] = useState(0);
+  const [logs, setLogs] = useState([]);
+  const [showROICalculator, setShowROICalculator] = useState(false);
+  const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [roiInputs, setRoiInputs] = useState({
+    monthlyTickets: 1000,
+    avgHandlingTime: 15,
+    hourlyRate: 25
+  });
+  const [calculatedROI, setCalculatedROI] = useState(null);
+  const [quoteData, setQuoteData] = useState({
+    company: '',
+    name: '',
+    email: '',
+    phone: '',
+    volume: '500 - 1000',
+    message: ''
+  });
+
+  const nodes = [
+    { id: 1, type: 'trigger', title: 'Email reçu', icon: Mail, description: 'support@boutique.fr', color: 'bg-blue-500', details: 'Webhook IMAP ou Gmail trigger' },
+    { id: 2, type: 'ai', title: 'Analyse IA', icon: Zap, description: 'Classification du message', color: 'bg-purple-500', details: 'API Claude/OpenAI pour extraire: intention, numéro commande, sentiment' },
+    { id: 3, type: 'router', title: 'Router intelligent', icon: AlertCircle, description: 'Aiguillage selon type', color: 'bg-yellow-500', details: '4 branches: Suivi, Retour, SAV technique, Escalade humain' },
+    { id: 4, type: 'action', title: 'Suivi commande', icon: Package, description: 'API Shopify/WooCommerce', color: 'bg-green-500', details: 'GET /orders/{id} → Statut livraison' },
+    { id: 5, type: 'action', title: 'Génération retour', icon: RefreshCw, description: 'Étiquette Colissimo', color: 'bg-orange-500', details: 'API Colissimo + Génération PDF + Programmation remboursement Stripe' },
+    { id: 6, type: 'action', title: 'Réponse automatique', icon: Send, description: 'Email personnalisé', color: 'bg-indigo-500', details: 'Template dynamique avec infos extraites' },
+    { id: 7, type: 'database', title: 'Base de données', icon: Database, description: 'Supabase/PostgreSQL', color: 'bg-gray-600', details: 'Historique conversations + Analytics' },
+    { id: 8, type: 'escalade', title: 'Escalade humain', icon: MessageSquare, description: 'Slack + Notion', color: 'bg-red-500', details: 'Si confiance IA < 80% ou demande complexe' }
+  ];
+
+  const presentationSteps = [
+    { step: 1, message: "📧 Email reçu de client@example.com", highlight: 1 },
+    { step: 2, message: "Sujet: 'Où est ma commande #12345 ?'", highlight: 1 },
+    { step: 3, message: "🤖 Analyse IA en cours...", highlight: 2 },
+    { step: 4, message: "✓ Intention: SUIVI_COMMANDE", highlight: 2 },
+    { step: 5, message: "✓ N° commande extrait: #12345", highlight: 2 },
+    { step: 6, message: "🔀 Router → Branche SUIVI", highlight: 3 },
+    { step: 7, message: "📦 Appel API Shopify...", highlight: 4 },
+    { step: 8, message: "✓ Commande: Expédiée le 25/10", highlight: 4 },
+    { step: 9, message: "✓ N° suivi: 6A12345", highlight: 4 },
+    { step: 10, message: "✉️ Email personnalisé généré", highlight: 6 },
+    { step: 11, message: "✓ Email envoyé au client", highlight: 6 },
+    { step: 12, message: "💾 Sauvegarde en base", highlight: 7 },
+    { step: 13, message: "✅ Terminé en 3.2s", highlight: null }
+  ];
+
+  const nextPresentationStep = () => {
+    if (currentPresentationStep < presentationSteps.length - 1) {
+      const nextStep = currentPresentationStep + 1;
+      setCurrentPresentationStep(nextStep);
+      const stepData = presentationSteps[nextStep];
+      setActiveStep(stepData.highlight);
+      setLogs(prev => [...prev, stepData.message]);
+    }
+  };
+
+  const resetPresentation = () => {
+    setCurrentPresentationStep(0);
+    setLogs([]);
+    setActiveStep(null);
+  };
+
+  const calculateROI = () => {
+    const { monthlyTickets, avgHandlingTime, hourlyRate } = roiInputs;
+    
+    const monthlyHumanHours = (monthlyTickets * avgHandlingTime) / 60;
+    const monthlyHumanCost = monthlyHumanHours * hourlyRate;
+    const annualHumanCost = monthlyHumanCost * 12;
+    
+    const automationRate = 0.82;
+    const automatedTickets = monthlyTickets * automationRate;
+    const monthlySavings = (automatedTickets * avgHandlingTime / 60) * hourlyRate;
+    const annualSavings = monthlySavings * 12;
+    
+    const setupCost = 4500;
+    const monthlyCost = 250;
+    const annualTotalCost = setupCost + (monthlyCost * 12);
+    
+    const netAnnualSavings = annualSavings - annualTotalCost;
+    const roiPercentage = ((netAnnualSavings / annualTotalCost) * 100).toFixed(0);
+    const paybackMonths = (setupCost / monthlySavings).toFixed(1);
+    const etpSaved = (monthlyHumanHours / 151.67).toFixed(1);
+    
+    setCalculatedROI({
+      annualSavings: Math.round(annualSavings),
+      annualCost: annualTotalCost,
+      netSavings: Math.round(netAnnualSavings),
+      roiPercentage,
+      paybackMonths,
+      etpSaved,
+      monthlySavings: Math.round(monthlySavings)
+    });
+  };
+
+  useEffect(() => {
+    if (roiInputs.monthlyTickets && roiInputs.avgHandlingTime && roiInputs.hourlyRate) {
+      calculateROI();
+    }
+  }, [roiInputs]);
+
+  const handleQuoteSubmit = () => {
+    if (quoteData.company && quoteData.name && quoteData.email) {
+      alert('Merci ! Nous vous contacterons sous 24h.\n\nVotre demande a été enregistrée pour: ' + quoteData.company);
+      setShowQuoteForm(false);
+      setQuoteData({ company: '', name: '', email: '', phone: '', volume: '500 - 1000', message: '' });
+    } else {
+      alert('Merci de remplir au minimum: Entreprise, Nom et Email');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 overflow-x-hidden">
+      {/* Header avec logo JMOTP */}
+      <div className="bg-slate-900/80 backdrop-blur-xl border-b border-blue-500/20 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">JMOTP</h1>
+                <p className="text-xs text-blue-300">Solutions IA & Automatisation</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowQuoteForm(true)}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Obtenir un devis
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Titre principal */}
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            Workflow Support Client E-commerce
+          </h2>
+          <p className="text-slate-300 text-lg">
+            Automatisation complète • Traite 80% des demandes automatiquement
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Workflow Visualization */}
+          <div className="lg:col-span-2 bg-slate-900/60 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/20 shadow-2xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Zap className="w-5 h-5 text-blue-400" />
+                Architecture du Workflow
+              </h3>
+              
+              {/* Contrôles de présentation */}
+              <div className="flex gap-2 flex-wrap">
+                {!presentationMode ? (
+                  <button
+                    onClick={() => {
+                      setPresentationMode(true);
+                      resetPresentation();
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    Mode Présentation
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={nextPresentationStep}
+                      disabled={currentPresentationStep >= presentationSteps.length - 1}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                      Étape suivante
+                    </button>
+                    <button
+                      onClick={resetPresentation}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Recommencer
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPresentationMode(false);
+                        resetPresentation();
+                      }}
+                      className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
+                    >
+                      <Pause className="w-4 h-4" />
+                      Stop
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {presentationMode && (
+              <div className="mb-4 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-blue-200 text-sm">
+                  📍 Étape {currentPresentationStep + 1} / {presentationSteps.length}
+                </p>
+              </div>
+            )}
+
+            {/* Nodes Grid */}
+            <div className="space-y-4">
+              <NodeCard node={nodes[0]} active={activeStep === 1} />
+              <div className="ml-8"><NodeCard node={nodes[1]} active={activeStep === 2} /></div>
+              <div className="ml-8"><NodeCard node={nodes[2]} active={activeStep === 3} /></div>
+              
+              <div className="ml-16 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="text-xs text-slate-400 font-mono">→ Branche SUIVI</div>
+                  <NodeCard node={nodes[3]} active={activeStep === 4} compact />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs text-slate-400 font-mono">→ Branche RETOUR</div>
+                  <NodeCard node={nodes[4]} active={activeStep === 5} compact />
+                </div>
+              </div>
+              
+              <div className="ml-8"><NodeCard node={nodes[5]} active={activeStep === 6} /></div>
+              
+              <div className="ml-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <NodeCard node={nodes[6]} active={activeStep === 7} compact />
+                <NodeCard node={nodes[7]} active={activeStep === 8} compact />
+              </div>
+            </div>
+          </div>
+
+          {/* Panneau latéral */}
+          <div className="space-y-6">
+            {/* Logs */}
+            <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/20 shadow-2xl">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-blue-400" />
+                Logs en temps réel
+              </h3>
+              <div className="bg-black/60 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm">
+                {logs.length === 0 ? (
+                  <p className="text-slate-500 text-center mt-8">
+                    Démarrez le mode présentation
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {logs.map((log, idx) => (
+                      <div key={idx} className="text-green-400 animate-fade-in">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl p-6 border border-blue-500/20 shadow-xl">
+              <h3 className="text-lg font-semibold text-white mb-4">Performance</h3>
+              <div className="space-y-3">
+                <Stat label="Temps de traitement" value="< 5s" icon={Zap} />
+                <Stat label="Taux automatisation" value="82%" icon={CheckCircle} />
+                <Stat label="Coût par requête" value="0.02€" icon={Database} />
+                <Stat label="Satisfaction client" value="4.6/5" icon={MessageSquare} />
+              </div>
+            </div>
+
+            {/* Bouton calculateur ROI */}
+            <button
+              onClick={() => setShowROICalculator(!showROICalculator)}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-2xl font-semibold hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2"
+            >
+              <Calculator className="w-5 h-5" />
+              {showROICalculator ? 'Masquer' : 'Calculer'} votre ROI
+            </button>
+          </div>
+        </div>
+
+        {/* Calculateur ROI */}
+        {showROICalculator && (
+          <div className="mt-6 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-2xl p-6 sm:p-8 border border-green-500/20 shadow-2xl">
+            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Calculator className="w-6 h-6" />
+              Calculateur ROI Personnalisé
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Inputs */}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-slate-300 mb-2 font-medium">
+                    Tickets support mensuels
+                  </label>
+                  <input
+                    type="number"
+                    value={roiInputs.monthlyTickets}
+                    onChange={(e) => setRoiInputs({...roiInputs, monthlyTickets: parseInt(e.target.value) || 0})}
+                    className="w-full bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3 text-white text-lg focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-slate-300 mb-2 font-medium">
+                    Temps de traitement moyen (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    value={roiInputs.avgHandlingTime}
+                    onChange={(e) => setRoiInputs({...roiInputs, avgHandlingTime: parseInt(e.target.value) || 0})}
+                    className="w-full bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3 text-white text-lg focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-slate-300 mb-2 font-medium">
+                    Coût horaire agent (€/h)
+                  </label>
+                  <input
+                    type="number"
+                    value={roiInputs.hourlyRate}
+                    onChange={(e) => setRoiInputs({...roiInputs, hourlyRate: parseInt(e.target.value) || 0})}
+                    className="w-full bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3 text-white text-lg focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Résultats */}
+              {calculatedROI && (
+                <div className="bg-slate-900/60 rounded-xl p-6 space-y-4">
+                  <h4 className="text-xl font-bold text-white mb-4">Vos économies</h4>
+                  
+                  <div className="space-y-3">
+                    <ROIResult 
+                      label="Économies annuelles"
+                      value={`${calculatedROI.annualSavings.toLocaleString()} €`}
+                      highlight
+                    />
+                    <ROIResult 
+                      label="Coût solution annuel"
+                      value={`${calculatedROI.annualCost.toLocaleString()} €`}
+                    />
+                    <ROIResult 
+                      label="Bénéfice net annuel"
+                      value={`${calculatedROI.netSavings.toLocaleString()} €`}
+                      highlight
+                    />
+                    <ROIResult 
+                      label="ROI"
+                      value={`${calculatedROI.roiPercentage}%`}
+                    />
+                    <ROIResult 
+                      label="Retour sur investissement"
+                      value={`${calculatedROI.paybackMonths} mois`}
+                    />
+                    <ROIResult 
+                      label="ETP économisés"
+                      value={calculatedROI.etpSaved}
+                    />
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-slate-700">
+                    <p className="text-slate-400 text-sm mb-3">
+                      💡 Économie mensuelle: <span className="text-green-400 font-bold">{calculatedROI.monthlySavings.toLocaleString()} €</span>
+                    </p>
+                    <button
+                      onClick={() => setShowQuoteForm(true)}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-xl transition-all"
+                    >
+                      Je veux ces résultats →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Technical Stack */}
+        <div className="mt-6 bg-slate-900/60 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/20 shadow-2xl">
+          <h3 className="text-lg font-semibold text-white mb-4">Stack Technique Recommandé</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <TechCard name="n8n" desc="Orchestration workflows" color="bg-red-500" />
+            <TechCard name="Claude API" desc="Analyse IA avancée" color="bg-orange-500" />
+            <TechCard name="Supabase" desc="Base de données" color="bg-green-500" />
+            <TechCard name="Shopify/WC" desc="API e-commerce" color="bg-purple-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Formulaire de devis (Modal) */}
+      {showQuoteForm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-blue-500/20 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white">Obtenir un devis</h3>
+              <button
+                onClick={() => setShowQuoteForm(false)}
+                className="text-slate-400 hover:text-white transition-colors text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-slate-300 mb-2">Entreprise *</label>
+                <input 
+                  type="text" 
+                  value={quoteData.company}
+                  onChange={(e) => setQuoteData({...quoteData, company: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-slate-300 mb-2">Nom & Prénom *</label>
+                <input 
+                  type="text" 
+                  value={quoteData.name}
+                  onChange={(e) => setQuoteData({...quoteData, name: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-slate-300 mb-2">Email *</label>
+                <input 
+                  type="email" 
+                  value={quoteData.email}
+                  onChange={(e) => setQuoteData({...quoteData, email: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-slate-300 mb-2">Téléphone</label>
+                <input 
+                  type="tel" 
+                  value={quoteData.phone}
+                  onChange={(e) => setQuoteData({...quoteData, phone: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-slate-300 mb-2">Volume mensuel tickets support</label>
+                <select 
+                  value={quoteData.volume}
+                  onChange={(e) => setQuoteData({...quoteData, volume: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+                >
+                  <option>Moins de 500</option>
+                  <option>500 - 1000</option>
+                  <option>1000 - 5000</option>
+                  <option>Plus de 5000</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-slate-300 mb-2">Message (optionnel)</label>
+                <textarea 
+                  rows={3}
+                  value={quoteData.message}
+                  onChange={(e) => setQuoteData({...quoteData, message: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              
+              <button
+                onClick={handleQuoteSubmit}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-xl transition-all"
+              >
+                Envoyer ma demande
+              </button>
+              
+              <p className="text-slate-400 text-xs text-center">
+                Réponse sous 24h • Devis gratuit et sans engagement
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+const NodeCard = ({ node, active, compact = false }) => {
+  const Icon = node.icon;
+  return (
+    <div className={`rounded-xl border transition-all duration-300 ${
+        active
+          ? 'border-blue-400 shadow-lg shadow-blue-500/30 scale-105 ring-2 ring-blue-400/50'
+          : 'border-slate-600/50'
+      } ${compact ? 'p-3' : 'p-4'} bg-slate-800/40 backdrop-blur`}>
+      <div className="flex items-start gap-3">
+        <div className={`${node.color} p-2 rounded-lg ${active ? 'animate-pulse' : ''}`}>
+          <Icon className={`text-white ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className={`font-semibold text-white ${compact ? 'text-sm' : 'text-base'}`}>
+            {node.title}
+          </h4>
+          <p className={`text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>
+            {node.description}
+          </p>
+          {!compact && (
+            <p className="text-xs text-slate-500 mt-1 font-mono">{node.details}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Stat = ({ label, value, icon: Icon }) => (
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <Icon className="w-4 h-4 text-slate-400" />
+      <span className="text-sm text-slate-400">{label}</span>
+    </div>
+    <span className="text-white font-semibold">{value}</span>
+  </div>
+);
+
+const TechCard = ({ name, desc, color }) => (
+  <div className="bg-slate-800/40 backdrop-blur rounded-lg p-4 border border-slate-600/50 hover:border-blue-500/50 transition-all">
+    <div className={`w-2 h-2 rounded-full ${color} mb-2`}></div>
+    <h4 className="text-white font-semibold text-sm">{name}</h4>
+    <p className="text-slate-400 text-xs mt-1">{desc}</p>
+  </div>
+);
+
+const ROIResult = ({ label, value, highlight = false }) => (
+  <div className={`flex justify-between items-center p-3 rounded-lg ${
+    highlight ? 'bg-green-500/20 border border-green-500/30' : 'bg-slate-800/30'
+  }`}>
+    <span className="text-slate-300 text-sm">{label}</span>
+    <span className={`font-bold text-lg ${highlight ? 'text-green-400' : 'text-white'}`}>
+      {value}
+    </span>
+  </div>
+);
+
+export default WorkflowDemo;
